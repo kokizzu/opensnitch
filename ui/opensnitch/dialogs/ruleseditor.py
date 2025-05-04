@@ -25,9 +25,9 @@ from opensnitch.utils import (
     NetworkInterfaces,
     qvalidator
 )
+from opensnitch.utils.network_aliases import NetworkAliases
 from opensnitch.rules import Rule, Rules
 
-from network_aliases import NetworkAliases
 
 DIALOG_UI_PATH = "%s/../res/ruleseditor.ui" % os.path.dirname(sys.modules[__name__].__file__)
 class RulesEditorDialog(QtWidgets.QDialog, uic.loadUiType(DIALOG_UI_PATH)[0]):
@@ -336,6 +336,8 @@ class RulesEditorDialog(QtWidgets.QDialog, uic.loadUiType(DIALOG_UI_PATH)[0]):
         elif duration_idx == 5:
             return Config.DURATION_1h
         elif duration_idx == 6:
+            return Config.DURATION_12h
+        elif duration_idx == 7:
             return Config.DURATION_UNTIL_RESTART
         else:
             return Config.DURATION_ALWAYS
@@ -353,11 +355,13 @@ class RulesEditorDialog(QtWidgets.QDialog, uic.loadUiType(DIALOG_UI_PATH)[0]):
             return 4
         elif duration == Config.DURATION_1h:
             return 5
-        elif duration == Config.DURATION_UNTIL_RESTART:
+        elif duration == Config.DURATION_12h:
             return 6
+        elif duration == Config.DURATION_UNTIL_RESTART:
+            return 7
         else:
             # always
-            return 7
+            return 8
 
     def _is_regex(self, text):
         charset="\\*{[|^?$"

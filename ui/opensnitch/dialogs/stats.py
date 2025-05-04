@@ -1223,6 +1223,7 @@ class StatsDialog(QtWidgets.QDialog, uic.loadUiType(DIALOG_UI_PATH)[0]):
 
             _durAlways = durMenu.addAction(QC.translate("stats", "Always"))
             _durUntilReboot = durMenu.addAction(QC.translate("stats", "Until reboot"))
+            _dur12h = durMenu.addAction(Config.DURATION_12h)
             _dur1h = durMenu.addAction(Config.DURATION_1h)
             _dur30m = durMenu.addAction(Config.DURATION_30m)
             _dur15m = durMenu.addAction(Config.DURATION_15m)
@@ -1280,6 +1281,8 @@ class StatsDialog(QtWidgets.QDialog, uic.loadUiType(DIALOG_UI_PATH)[0]):
                 self._table_menu_duplicate(cur_idx, model, selection)
             elif action == _durAlways:
                 self._table_menu_change_rule_field(cur_idx, model, selection, "duration", Config.DURATION_ALWAYS)
+            elif action == _dur12h:
+                self._table_menu_change_rule_field(cur_idx, model, selection, "duration", Config.DURATION_12h)
             elif action == _dur1h:
                 self._table_menu_change_rule_field(cur_idx, model, selection, "duration", Config.DURATION_1h)
             elif action == _dur30m:
@@ -1679,6 +1682,11 @@ class StatsDialog(QtWidgets.QDialog, uic.loadUiType(DIALOG_UI_PATH)[0]):
     def _cb_notification_callback(self, node_addr, reply):
         if reply.id in self._notifications_sent:
             noti = self._notifications_sent[reply.id]
+
+            # convert dictionary sent from _cb_fw_table_rows_reordered()
+            if isinstance(noti, dict) and isinstance(noti["notif"].type, int):
+                noti = noti["notif"]
+
             if noti.type == ui_pb2.TASK_START and reply.code != ui_pb2.ERROR:
                 noti_data = json.loads(noti.data)
                 if noti_data['name'] == "node-monitor":
