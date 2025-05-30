@@ -105,6 +105,7 @@ class Themes():
     __instance = None
 
     AVAILABLE = False
+    IS_DARK = False
     try:
         from qt_material import apply_stylesheet as qtmaterial_apply_stylesheet
         from qt_material import list_themes as qtmaterial_themes
@@ -157,6 +158,8 @@ class Themes():
             theme_idx, theme_name, theme_density = self.get_saved_theme()
             if theme_name != "":
                 invert = "light" in theme_name
+                Themes.IS_DARK = theme_name.startswith("dark")
+
                 print("Using theme:", theme_idx, theme_name, "inverted:", invert)
                 # TODO: load {theme}.xml.extra and .xml.css for further
                 # customizations.
@@ -170,6 +173,8 @@ class Themes():
     def change_theme(self, window, theme_name, extra={}):
         try:
             invert = "light" in theme_name
+            Themes.IS_DARK = theme_name.startswith("dark")
+
             Themes.qtmaterial_apply_stylesheet(window, theme=theme_name,  invert_secondary=invert, extra=extra)
         except Exception as e:
             print("Themes.change_theme() exception:", e, " - ", window, theme_name)
@@ -509,6 +514,17 @@ class Icons():
 
     @staticmethod
     def new(widget, icon_name):
+        if Themes.IS_DARK:
+            icon_pix = os.path.join(
+                os.path.abspath(os.path.dirname(__file__)),
+                "../res/themes/dark/icons/",
+                icon_name + ".svg")
+            if os.path.exists(icon_pix):
+                icon_image = QtGui.QPixmap(icon_pix)
+                icon = QtGui.QIcon()
+                icon.addPixmap(icon_image, QtGui.QIcon.Normal, QtGui.QIcon.Off)
+                return icon
+
         icon = QtGui.QIcon.fromTheme(icon_name, QtGui.QIcon.fromTheme(icon_name + "-symbolic"))
         if icon.isNull():
             try:
