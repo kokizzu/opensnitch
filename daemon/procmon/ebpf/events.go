@@ -35,13 +35,12 @@ type execEvent struct {
 	UID         uint32
 	PPID        uint32
 	RetCode     uint32
+	Pad         uint16
 	ArgsCount   uint8
 	ArgsPartial uint8
 	Filename    [MaxPathLen]byte
 	Args        [MaxArgs][MaxArgLen]byte
 	Comm        [TaskCommLen]byte
-	Pad1        uint16
-	Pad2        uint32
 }
 
 // Struct that holds the metadata of a connection.
@@ -111,31 +110,31 @@ func initEventsStreamer() *Error {
 	tp1, err := link.Tracepoint("syscalls", "sys_enter_execve", ebpfMod.TPointExecve, nil)
 	if err != nil {
 		failed_tps = "sys_enter_execve"
-		log.Error("[eBPF events] sys_enter_execve: %s", err)
+		log.Warning("[eBPF events] sys_enter_execve: %s", err)
 	}
 	hooks = append(hooks, tp1)
 	tp2, err := link.Tracepoint("syscalls", "sys_exit_execve", ebpfMod.TPointExitExecve, nil)
 	if err != nil {
 		failed_tps += " sys_exit_execve"
-		log.Error("[eBPF events] sys_exit_execve: %s", err)
+		log.Warning("[eBPF events] sys_exit_execve: %s", err)
 	}
 	hooks = append(hooks, tp2)
 	tp3, err := link.Tracepoint("syscalls", "sys_enter_execveat", ebpfMod.TPointExecveAt, nil)
 	if err != nil {
 		failed_tps += " sys_enter_execveat"
-		log.Error("[eBPF events] sys_enter_execveat: %s", err)
+		log.Warning("[eBPF events] sys_enter_execveat: %s", err)
 	}
 	hooks = append(hooks, tp3)
 	tp4, err := link.Tracepoint("syscalls", "sys_exit_execveat", ebpfMod.TPointExitExecveAt, nil)
 	if err != nil {
 		failed_tps += " sys_exit_execveat"
-		log.Error("[eBPF events] sys_exit_execveat: %s", err)
+		log.Warning("[eBPF events] sys_exit_execveat: %s", err)
 	}
 	hooks = append(hooks, tp4)
 	tpe, err := link.Tracepoint("sched", "sched_process_exit", ebpfMod.TPointSchedProcExit, nil)
 	if err != nil {
 		failed_tps += " sched_process_exit"
-		log.Error("[eBPF events] sched_process_exit: %s", err)
+		log.Warning("[eBPF events] sched_process_exit: %s", err)
 	}
 	hooks = append(hooks, tpe)
 
@@ -239,7 +238,7 @@ func processExecEvent(event *execEvent) {
 	if proc == nil {
 		return
 	}
-	log.Debug("[eBPF exec event] type: %d, ppid: %d, pid: %d, %s -> %s", event.Type, event.PPID, event.PID, proc.Path, proc.Args)
+	log.Debug("[eBPF exec event] type: %d, ppid: %d, pid: %d, uid: %d, %s -> %s", event.Type, event.PPID, event.PID, event.UID, proc.Path, proc.Args)
 	itemParent, pfound := procmon.EventsCache.IsInStoreByPID(proc.PPID)
 	if pfound {
 		proc.Parent = &itemParent.Proc
@@ -259,7 +258,7 @@ func processExecEvent(event *execEvent) {
 	}
 
 	// from now on use cached Process
-	log.Debug("[eBPF event inCache] -> %d, %s", event.PID, item.Proc.Path)
+	log.Debug("[eBPF event inCache] pid: %d, uid: %d, %s", event.PID, event.UID, item.Proc.Path)
 }
 
 // event2process creates a new Process from execEvent
@@ -267,17 +266,27 @@ func event2process(event *execEvent) (proc *procmon.Process) {
 	proc = procmon.NewProcessEmpty(int(event.PID), byteArrayToString(event.Comm[:]))
 	proc.UID = int(event.UID)
 
-	// NOTE: this is the absolute path executed, but no the real path to the binary.
+	// NOTE:
+	// this is the absolute path of the binary executed, but no the real path to the binary on disk.
 	// if it's executed from a chroot, the absolute path will be /chroot/path/usr/bin/blabla
-	// if it's from a container, the real absolute path will be /proc/<pid>/root/usr/bin/blabla
+	// if it's from a container, the real absolute path on disk will be /proc/<pid>/root/usr/bin/blabla
 	path := byteArrayToString(event.Filename[:])
-	if path != "" {
-		proc.SetPath(path)
+
+	// the path of the binary may also be a symlink, so we need to get where it points to.
+	exePath, err := proc.ReadExeLink()
+
+	if err == nil && exePath != "" {
+		proc.SetPath(exePath)
 	} else {
-		if proc.ReadPath() != nil {
-			return nil
+		if path != "" {
+			proc.SetPath(path)
+		} else {
+			if proc.ReadPath() != nil {
+				return nil
+			}
 		}
 	}
+
 	if event.PPID != 0 {
 		proc.PPID = int(event.PPID)
 	} else {
