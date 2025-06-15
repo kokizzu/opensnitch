@@ -3,8 +3,9 @@
 # On Debian based distros we need the following 2 directories.
 # Otherwise, just use the kernel headers from the kernel sources.
 #
-KERNEL_DIR ?= /lib/modules/$(shell uname -r)/source
-KERNEL_HEADERS ?= /usr/src/linux-headers-$(shell uname -r)/
+KERNEL_VER ?= $(shell ls -d /lib/modules/*/source | sort | tail -1 | cut -d/ -f4)
+KERNEL_DIR ?= /lib/modules/$(KERNEL_VER)/source
+KERNEL_HEADERS ?= /usr/src/linux-headers-$(KERNEL_VER)/
 CC = clang
 LLC ?= llc
 ARCH ?= $(shell uname -m)
@@ -17,8 +18,16 @@ else ifeq ($(ARCH),i686)
 	ARCH := x86
 else ifeq ($(ARCH),armv7l)
 	ARCH := arm
+else ifeq ($(ARCH),armv8l)
+	ARCH := arm
 else ifeq ($(ARCH),aarch64)
 	ARCH := arm64
+else ifeq ($(ARCH),loongarch64)
+	ARCH := loongarch
+else ifeq ($(ARCH),riscv64)
+	ARCH := riscv
+else ifeq ($(ARCH),s390x)
+	ARCH := s390
 endif
 
 ifeq ($(ARCH),arm)

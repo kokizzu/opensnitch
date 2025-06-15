@@ -1,6 +1,6 @@
 %define name opensnitch-ui
-%define version 1.7.0rc2
-%define unmangled_version 1.7.0rc2
+%define version 1.7.0.0
+%define unmangled_version 1.7.0.0
 %define release 1
 %define __python python3
 %define desktop_file opensnitch_ui.desktop
@@ -76,7 +76,6 @@ fi
 
 %build
 cd i18n; make; cd ..
-cp -r i18n/locales/ opensnitch/i18n
 pyrcc5 -o opensnitch/resources_rc.py opensnitch/res/resources.qrc
 find opensnitch/proto/ -name 'ui_pb2_grpc.py' -exec sed -i 's/^import ui_pb2/from . import ui_pb2/' {} \;
 python3 setup.py build
